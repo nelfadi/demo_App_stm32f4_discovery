@@ -34,16 +34,16 @@
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
 #include "usb_device.h"
-
+#include "portmacro.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi1;
-
+//SPI_HandleTypeDef hspi1;
+ADC_HandleTypeDef hadc1;
 osThreadId defaultTaskHandle;
-//
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
@@ -53,14 +53,14 @@ osThreadId defaultTaskHandle;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void StartDefaultTask(void const * argument);
-
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+extern int PERIOD_LED;
 /* USER CODE END 0 */
 
 int main(void)
@@ -80,7 +80,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-
+  MX_ADC1_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -100,7 +100,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 512);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 1024);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -172,19 +172,7 @@ void SystemClock_Config(void)
 void MX_SPI1_Init(void)
 {
 
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLED;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
-  hspi1.Init.CRCPolynomial = 10;
-  HAL_SPI_Init(&hspi1);
+
 
 }
 
@@ -300,24 +288,152 @@ void MX_GPIO_Init(void)
 
 }
 
-/* USER CODE BEGIN 4 */
+/* ADC1 init function */
+void MX_ADC1_Init(void)
+{
 
+  ADC_ChannelConfTypeDef sConfig;
+
+    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+    */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCKPRESCALER_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION12b;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = EOC_SINGLE_CONV;
+  HAL_ADC_Init(&hadc1);
+
+    /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+    */
+  sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+
+}
+
+
+/* USER CODE BEGIN 4 */
+SemaphoreHandle_t xSemaphore;
 /* USER CODE END 4 */
 
 /* StartDefaultTask function */
 void StartDefaultTask(void const * argument)
 {
   /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
+	trace_printf("[==>USB DEVICE INIT\t]\n");
+	MX_USB_DEVICE_Init();
 
   /* USER CODE BEGIN 5 */
+	USBD_StatusTypeDef err=USBD_OK;
+
   /* Infinite loop */
+
+	xSemaphore=xSemaphoreCreateBinary();
+uint32_t adc_val;
+float TemperatureValue = 0;
+ int to_transmit;
+char Tx_Buffer[2];
+
+
+
+TickType_t xLastWakeTime;
+	const TickType_t xFrequency = 1000; //every 10 ticks = 10ms
+	// Initialise the xLastWakeTime variable with the current time.
+	xLastWakeTime = xTaskGetTickCount ();
+	extern int connection_already_open;
+	connection_already_open=0;
+	extern  int isDataTerminalReady;
   for(;;)
   {
-	turn_on_leds();
-	osDelay(500);
-	turn_off_leds();
-    osDelay(500);
+	  //CDC_Transmit_FS("Nabil",sizeof("Nabil"));
+	  // err=USBD_CDC_SetTxBuffer(&hUsbDeviceFS,"ok",sizeof("ok"));
+	  //trace_printf("[==>%d\t]\n",err);
+	  //	  if(xSemaphoreTake(xSemaphore,portMAX_DELAY)==pdTRUE)
+	  //	  {
+	  //		  //simulate action
+	  //
+	  //
+	  //
+	  //
+	  //
+	  //	  }
+	  //trace_printf("Freq=%d\n",PERIOD_LED);
+	  //LedAnimation(PERIOD_LED);
+		 if(hUsbDeviceFS.dev_state==USBD_STATE_CONFIGURED)
+		 {
+
+
+				 //trace_printf("[==>CONNECTION IS OPEN\t]\n");
+
+			 	 if(isDataTerminalReady) //port opened for com
+			  {
+			 		trace_printf("[+++TERMINAL READY+++\t]\n");
+				  HAL_ADC_Start(&hadc1);
+				  if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK)
+				  {
+					  TemperatureValue =HAL_ADC_GetValue(&hadc1);
+					  /**
+					   *Algo
+					   */
+
+					  TemperatureValue *= 3300;
+					  TemperatureValue /= 0xfff; //Reading in mV
+					  TemperatureValue /= 1000.0; //Reading in Volts
+					  TemperatureValue -= 0.760; // Subtract the reference voltage at 25°C
+					  TemperatureValue /= .0025; // Divide by slope 2.5mV
+
+					  TemperatureValue += 25.0; // Add the 25°C
+
+
+					  to_transmit=(int)(100*TemperatureValue); // arrondir
+					  sprintf(Tx_Buffer,"%ld", (int)(100*TemperatureValue));
+					  TickType_t xTicks0=xTaskGetTickCount();
+					 					  uint8_t result = CDC_Transmit_FS(Tx_Buffer,sizeof(Tx_Buffer));
+
+					 					 //trace_printf("%d\n",xTicks0);
+					  /*
+					  switch (result) {
+					  				case USBD_OK:
+					  					trace_printf("[==>TRANSMISSION OK\t]\n");
+					  					break;
+					  				case USBD_BUSY:
+					  									trace_printf("[==>TRANSMISSION BUSY\t]\n");
+					  									//wait a little bit until transmission is OK
+
+					  									break;
+
+					  				case USBD_FAIL:
+					  									trace_printf("[==>TRANSMISSION FAILURE\t]\n");
+					  									break;
+					  				default:
+					  					break;
+					  			}
+					  			*/
+
+				  }
+				  HAL_ADC_Stop(&hadc1);
+				  vTaskDelayUntil( &xLastWakeTime, 1000 );
+			  }
+			 	 else
+			 	 {
+
+			 		trace_printf("[+++TERMINAL NOT READY+++\t]\n");
+			 		vTaskDelayUntil( &xLastWakeTime, 1000 );
+			 	 }
+
+
+		 }
+
+
+
+
   }
   /* USER CODE END 5 */
 }

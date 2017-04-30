@@ -65,6 +65,9 @@
   * @{
   */  
 /* USER CODE BEGIN EXPORTED_TYPES */
+ int connection_is_open;
+ int connection_already_open;
+ int isDataTerminalReady;
 /* USER CODE END EXPORTED_TYPES */
 
 /**

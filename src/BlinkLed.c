@@ -46,6 +46,15 @@ void turn_off_leds()
     HAL_GPIO_WritePin(GPIOD,GPIO_PIN_15,GPIO_PIN_RESET);
 }
 
+void LedAnimation(int period)
+{
+turn_off_leds();
+osDelay(period);
+turn_on_leds();
+osDelay(period);
+
+}
+
 void test_led(void)
 {
 	HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_SET);

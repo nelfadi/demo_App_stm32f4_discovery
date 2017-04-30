@@ -82,8 +82,8 @@ blink_led_off(void)
 void turn_off_leds();
 void turn_on_leds();
 void test_led(void);
-
-
+void LedAnimation(int freq);
+int PERIOD_LED;
 
 // ----------------------------------------------------------------------------
 
