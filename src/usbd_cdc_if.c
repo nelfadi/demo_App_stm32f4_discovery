@@ -92,7 +92,7 @@ uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 /* USB handler declaration */
 /* Handle for USB Full Speed IP */
-  USBD_HandleTypeDef  *hUsbDevice_0;
+  USBD_HandleTypeDef  * phUsbDevice_0;
 /* USER CODE BEGIN PRIVATE_VARIABLES */
 /* USER CODE END PRIVATE_VARIABLES */
 
@@ -151,11 +151,11 @@ USBD_CDC_LineCodingTypeDef linecoding =
   */
 static int8_t CDC_Init_FS(void)
 {
-  hUsbDevice_0 = &hUsbDeviceFS;
+  phUsbDevice_0 = &hUsbDeviceFS;
   /* USER CODE BEGIN 3 */
   /* Set Application Buffers */
-  USBD_CDC_SetTxBuffer(hUsbDevice_0, UserTxBufferFS, 0);
-  USBD_CDC_SetRxBuffer(hUsbDevice_0, UserRxBufferFS);
+  USBD_CDC_SetTxBuffer(phUsbDevice_0, UserTxBufferFS, 0);
+  USBD_CDC_SetRxBuffer(phUsbDevice_0, UserRxBufferFS);
   return (USBD_OK);
   /* USER CODE END 3 */
 }
@@ -292,12 +292,12 @@ static int8_t CDC_Receive_FS (uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
 	HAL_GPIO_TogglePin(GPIOD,GPIO_PIN_12);
-  USBD_CDC_SetRxBuffer(hUsbDevice_0, &Buf[0]);
-  USBD_CDC_ReceivePacket(hUsbDevice_0);
+  USBD_CDC_SetRxBuffer(phUsbDevice_0, &Buf[0]);
+  USBD_CDC_ReceivePacket(phUsbDevice_0);
   trace_printf("%s",Buf);
   /*
-  USBD_CDC_SetTxBuffer(hUsbDevice_0,&Buf[0],1);
-  USBD_CDC_TransmitPacket(hUsbDevice_0);
+  USBD_CDC_SetTxBuffer(phUsbDevice_0,&Buf[0],1);
+  USBD_CDC_TransmitPacket(phUsbDevice_0);
   */
 
   extern int PERIOD_LED;
@@ -336,25 +336,18 @@ static int8_t CDC_Receive_FS (uint8_t* Buf, uint32_t *Len)
   */
 uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 {
-
-	HAL_GPIO_TogglePin(GPIOD,GPIO_PIN_14);
 	uint8_t result = USBD_OK;
-	TickType_t time;
-	  /* USER CODE BEGIN 7 */
-	result=USBD_CDC_SetTxBuffer(hUsbDevice_0, Buf, Len);
-	  while(result != USBD_OK);
-	  do {
-	    result = USBD_CDC_TransmitPacket(hUsbDevice_0);
-	    //implement a timeout
-	    //time=osKernelSysTick();
-	    //if(time>5000) break;
 
+	USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)(*phUsbDevice_0).pClassData;
+	if(hcdc->TxState != 0)
+	{
+	  return USBD_BUSY;
+	}
+	USBD_CDC_SetTxBuffer(phUsbDevice_0, Buf, Len);
+	result = USBD_CDC_TransmitPacket(phUsbDevice_0);
 
-	  }
-	  while(result != USBD_OK);
+	return result;
 
-	  /* USER CODE END 7 */
-	  return result;
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */

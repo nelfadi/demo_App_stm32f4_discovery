@@ -366,6 +366,7 @@ TickType_t xLastWakeTime;
 	  //	  }
 	  //trace_printf("Freq=%d\n",PERIOD_LED);
 	  //LedAnimation(PERIOD_LED);
+	  LedAnimation(500);
 		 if(hUsbDeviceFS.dev_state==USBD_STATE_CONFIGURED)
 		 {
 

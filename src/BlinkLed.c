@@ -49,9 +49,9 @@ void turn_off_leds()
 void LedAnimation(int period)
 {
 turn_off_leds();
-osDelay(period);
+HAL_Delay(1000);
 turn_on_leds();
-osDelay(period);
+HAL_Delay(1000);
 
 }
 
